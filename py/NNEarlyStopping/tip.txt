@@ -1,0 +1,2032 @@
+Логотип REG.RU
+/ Блог
+Подписаться на рассылку Подписаться
+Поиск по сайту Поиск
+AI ДА GPU
+Как начать работу с Keras, Deep Learning и Python
+Специально для тех, кто только начинает осваивать Deep Learning и нейронные сети, мы подготовили перевод очень полезной статьи. Из неё вы узнаете, как использовать библиотеку Keras для обучения своей первой нейронной сети с собственным набором изображений, а также сможете создать свёрточную нейронную сеть (CNN).
+
+Большинство учебных пособий по Keras основаны на работе со стандартными датасетами, такими как MNIST (распознавание рукописного ввода цифр) или CIFAR-10 (распознавание базовых объектов). Они помогут вам начать использовать Keras, но не смогут научить работать с собственными наборами изображений — вы просто будете вызывать вспомогательные функции для загрузки предварительно скомпилированных датасетов.
+
+Поэтому вместо того, чтобы вновь обращаться к предкомпилированным датасетам, мы рассмотрим, как обучить вашу первую нейронную сеть и CNN на оригинальном наборе изображений, как этого и требуют реальные задачи.
+
+Содержание
+Введение
+
+1. Установка Keras и другого необходимого ПО
+
+2. Загрузка ваших данных с диска
+
+3. Разбиение их на обучающую и тестовую выборки
+
+4. Определение архитектуры вашей модели Keras
+
+5. Компиляция вашей модели
+
+6. Обучение модели
+
+7. Оценка модели на тестовой выборке
+
+8. Распознавание изображений с использованием обученной модели
+
+9. Бонус: обучение свёрточной нейронной сети
+
+Исходный код
+
+Введение
+Статья предполагает пошаговое выполнение фрагментов кода, для чего понадобится компилятор Python или среда Jupyter Notebook.
+
+Здесь мы не будем подробно рассматривать теорию Deep Learning. Этой теме посвящено большое количество литературы, например, книга «Deep Learning for Computer Vision with Python».
+
+В этом разделе мы определимся с методикой подготовки данных и обсудим структуру проекта.
+
+Наш набор данных
+
+
+Никаких CIFAR10 и MNIST!
+Для начала отметим, что MNIST и CIFAR-10 представляют собой не самые интересные примеры. Вы не научитесь работать со своими данными, а будете пользоваться встроенными утилитами Keras, которые волшебным образом превращают датасеты MNIST и CIFAR-10 в массивы NumPy. Даже обучающую и тестовую выборку уже сделали за вас!
+
+А если вы захотите использовать собственные изображения, то, скорее всего, не зная, с чего начать, будете задавать себе следующие вопросы:
+
+— откуда эти вспомогательные функции загружают данные?
+
+— в каком формате должны быть изображения на диске?
+
+— как загрузить мой датасет в память?
+
+— какую предварительную обработку необходимо выполнить?
+
+Без паники. Сейчас мы во всём разберёмся.
+
+Для начала, возьмём готовый датасет с животными, состоящий из фотографий собак, кошек и панд.
+
+
+Цель — правильно классифицировать изображение как содержащее кота, собаку или панду.
+
+Набор содержит 3000 изображений и послужит первоначальным материалом, с помощью которого мы сможем быстро обучить DL модель, используя CPU или GPU, и при этом получить разумную точность.
+
+В процессе работы с этим датасетом вы сможете понять, как выполнить следующие действия:
+
+— упорядочить свой набор изображений на диске
+
+— загрузить изображения и метки класса с диска
+
+— разделить данные на обучающую и тестовую выборки
+
+— обучить вашу первую нейросеть Keras
+
+— оценить вашу модель на тестовой выборке
+
+— использовать свою обученную модель в дальнейшем на совершенно новых данных
+
+Если вы хотите создать набор данных из доступных в Интернете изображений, то сделать это можно простым способом с помощью поиска картинок Bing или чуть более сложным способом с помощью поисковика Google.
+
+Структура проекта
+Распаковав zip-архив к статье, вы получите следующую структуру файлов и папок:
+
+
+$ tree --dirsfirst --filelimit 10
+ .
+ ├── animals<br> 
+   ├── cats [1000 entries exceeds filelimit, not opening dir]
+   ├── dogs [1000 entries exceeds filelimit, not opening dir]
+   └── panda [1000 entries exceeds filelimit, not opening dir]
+ ├── images
+   ├── cat.jpg
+   ├── dog.jpg
+   └── panda.jpg
+ ├── output
+   ├── simple_nn.model
+   ├── simple_nn_lb.pickle
+   ├── simple_nn_plot.png
+   ├── smallvggnet.model
+   ├── smallvggnet_lb.pickle
+   └── smallvggnet_plot.png
+ ├── pyimagesearch
+   ├── init.py
+   └── smallvggnet.py
+ ├── predict.py
+ ├── train_simple_nn.py
+ └── train_vgg.py
+
+ 7 directories, 14 files
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+$ tree --dirsfirst --filelimit 10
+ .
+ ├── animals<br> 
+   ├── cats [1000 entries exceeds filelimit, not opening dir]
+   ├── dogs [1000 entries exceeds filelimit, not opening dir]
+   └── panda [1000 entries exceeds filelimit, not opening dir]
+ ├── images
+   ├── cat.jpg
+   ├── dog.jpg
+   └── panda.jpg
+ ├── output
+   ├── simple_nn.model
+   ├── simple_nn_lb.pickle
+   ├── simple_nn_plot.png
+   ├── smallvggnet.model
+   ├── smallvggnet_lb.pickle
+   └── smallvggnet_plot.png
+ ├── pyimagesearch
+   ├── init.py
+   └── smallvggnet.py
+ ├── predict.py
+ ├── train_simple_nn.py
+ └── train_vgg.py
+ 
+ 7 directories, 14 files
+Как упоминалось ранее, мы работаем с датасетом Animals. Обратите внимание, как он расположен в дереве проекта. Внутри animals/ находятся каталоги трёх классов: cats/, dogs/, panda/. В каждом из них содержится 1000 изображений, относящихся к соответствующему классу.
+
+Если вы работаете с собственным набором изображений — просто организуйте его таким же образом. В идеале у вас должно быть как минимум 1000 изображений для каждого класса. Это не всегда возможно, но, по крайней мере, классы должны быть сбалансированы. Если в одном из классов будет гораздо больше изображений, чем в других, это может привести к смещению модели.
+
+Далее идёт каталог images/. Он содержит три изображения для тестирования модели, которые мы будем использовать, чтобы продемонстрировать, как:
+
+Загрузить обученную модель с диска.
+Классифицировать входное изображение, которое не является частью исходного набора данных.
+Папка output/ содержит три типа файлов, которые создаются путём обучения:
+
+— .model: сериализованный файл модели Keras, создаётся после обучения и может использоваться в дальнейших сценариях вывода.
+
+— .pickle: сериализованный файл бинаризатора меток. Включает в себя объект, содержащий имена классов и сопряжён с файлом модели.
+
+— .png: лучше всегда помещать свои графики обучения/проверки в эту папку, поскольку они отражают результат процесса.
+
+Каталог pyimagesearch/ — модуль, который находится в папке проекта. Содержащиеся в нём классы могут быть импортированы в ваши сценарии.
+
+В статье мы рассмотрим 4 .py файла. Начнём с обучения простой модели с помощью скрипта train_simple_nn.py. Далее перейдём к обучению SmallVGGNet, используя скрипт train_vgg.py. SmallVGGNet.py содержит класс SmallVGGNet (свёрточную нейронную сеть). Но что хорошего в сериализованной модели, если мы не можем её применить? В predict.py находится образец кода для загрузки модели и файла метки для распознавания изображений. Этот скрипт понадобится только после того, как мы успешно обучим модель с достаточной точностью. Всегда полезно запускать его для проверки модели на изображениях, которые не содержатся в исходных данных.
+
+1. Установка Keras
+
+Для работы над проектом нам понадобится установить Keras, TensorFlow и OpenCV.
+
+Если у вас ещё нет этого ПО, можете воспользоваться простыми руководствами по установке:
+
+— руководство по установке OpenCV (для Ubuntu, MacOS или Raspberry Pi).
+
+— установка Keras с TensorFlow. С помощью pip вы можете установить Keras и TensorFlow меньше, чем за две минуты. Ваш компьютер или устройство должно быть достаточно производительным. Поэтому не рекомендуются устанавливать эти пакеты на Raspberry Pi, хотя на таком миникомпьютере могут хорошо работать уже обученные и не слишком объёмные модели.
+
+— установка imutil, scikit-learn и matplotlib:
+
+
+$ pip install --upgrade imutils 
+$ pip install --upgrade scikit-learn 
+$ pip install --upgrade matplotlib
+1
+2
+3
+$ pip install --upgrade imutils 
+$ pip install --upgrade scikit-learn 
+$ pip install --upgrade matplotlib
+2. Загрузка данных с диска
+
+Теперь, когда Keras установлен в нашей системе, мы можем приступить к реализации первого простого сценария обучения нейронной сети с использованием Keras. Позже мы реализуем полноценную свёрточную нейронную сеть, но давайте по порядку.
+
+Откройте файл train_simple_nn.py и вставьте в него следующий код:
+
+
+# импортируем бэкенд Agg из matplotlib для сохранения графиков на диск
+import matplotlib
+matplotlib.use("Agg")
+ 
+# подключаем необходимые пакеты
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from keras.models import Sequential
+from keras.layers.core import Dense
+from keras.optimizers import SGD
+from imutils import paths
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import random
+import pickle
+import cv2
+import os 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+# импортируем бэкенд Agg из matplotlib для сохранения графиков на диск
+import matplotlib
+matplotlib.use("Agg")
+ 
+# подключаем необходимые пакеты
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from keras.models import Sequential
+from keras.layers.core import Dense
+from keras.optimizers import SGD
+from imutils import paths
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import random
+import pickle
+import cv2
+import os 
+Рассмотрим инструменты, используемые в скрипте:
+
+— matplotlib: готовый пакет для Python. В строке 3 мы подключаем бэкенд «Agg», который позволяет сохранять графики на диск.
+
+— sklearn: библиотека scikit-learn поможет бинаризовать наши метки, разделить данные на обучающую и тестовую выборки и сгенерировать отчёт об обучении в терминале.
+
+— keras: высокоуровневый фронтенд для TensorFlow и других бэкендов глубокого обучения.
+
+— imutils: пакет с удобными функциями, модуль path будет использоваться для генерации списка путей к файлам изображений.
+
+— numpy: пакет для работы с числами в Python. Если у вас установлен OpenCV и scikit-learn, то у вас уже есть NumPy как зависимый от них пакет.
+
+— cv2: это OpenCV. На данный момент необходимо будет использовать версию 2, даже если обычно вы используете OpenCV 3 или выше.
+
+Всё остальное уже встроено в ваш Python.
+
+Теперь у вас есть представление о том, для чего нужен каждый import и для каких задач мы будем их использовать.
+
+Давайте разберём аргументы командной строки с помощью argparse:
+
+
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset", required=True,
+    help="path to input dataset of images")
+ap.add_argument("-m", "--model", required=True,
+    help="path to output trained model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to output label binarizer")
+ap.add_argument("-p", "--plot", required=True,
+    help="path to output accuracy/loss plot")
+args = vars(ap.parse_args()) 
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset", required=True,
+    help="path to input dataset of images")
+ap.add_argument("-m", "--model", required=True,
+    help="path to output trained model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to output label binarizer")
+ap.add_argument("-p", "--plot", required=True,
+    help="path to output accuracy/loss plot")
+args = vars(ap.parse_args()) 
+Наш скрипт будет динамически обрабатывать поступающую из командной строки информацию во время выполнения с помощью встроенного в Python модуля argparse.
+
+У нас есть 4 аргумента командной строки:
+
+--dataset: путь к набору изображений на диске.
+
+--model: наша модель будет сериализована и записана на диск. Этот аргумент содержит путь к выходному файлу модели.
+
+--label-bin: метки набора данных сериализуются на диск для возможности их вызова в других скриптах. Это путь к выходному бинаризованному файлу метки.
+
+--plot: путь к выходному файлу графика обучения. Мы рассмотрим этот график, чтобы проверить недообучение или переобучение наших данных.
+
+Имея информацию о наборе данных, давайте загрузим изображения и метки классов:
+
+
+# инициализируем данные и метки
+print("[INFO] loading images...")
+data = []
+labels = []
+ 
+# берём пути к изображениям и рандомно перемешиваем
+imagePaths = sorted(list(paths.list_images(args["dataset"])))
+random.seed(42)
+random.shuffle(imagePaths)
+ 
+# цикл по изображениям
+for imagePath in imagePaths:
+    # загружаем изображение, меняем размер на 32x32 пикселей (без учёта
+    # соотношения сторон), сглаживаем его в 32x32x3=3072 пикселей и
+    # добавляем в список
+    image = cv2.imread(imagePath)
+    image = cv2.resize(image, (32, 32)).flatten()
+    data.append(image)
+ 
+    # извлекаем метку класса из пути к изображению и обновляем
+    # список меток
+    label = imagePath.split(os.path.sep)[-2]
+    labels.append(label) 
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+# инициализируем данные и метки
+print("[INFO] loading images...")
+data = []
+labels = []
+ 
+# берём пути к изображениям и рандомно перемешиваем
+imagePaths = sorted(list(paths.list_images(args["dataset"])))
+random.seed(42)
+random.shuffle(imagePaths)
+ 
+# цикл по изображениям
+for imagePath in imagePaths:
+    # загружаем изображение, меняем размер на 32x32 пикселей (без учёта
+    # соотношения сторон), сглаживаем его в 32x32x3=3072 пикселей и
+    # добавляем в список
+    image = cv2.imread(imagePath)
+    image = cv2.resize(image, (32, 32)).flatten()
+    data.append(image)
+ 
+    # извлекаем метку класса из пути к изображению и обновляем
+    # список меток
+    label = imagePath.split(os.path.sep)[-2]
+    labels.append(label) 
+Здесь мы:
+
+Инициализируем списки для наших данных (data) и меток (labels) (строки 35 и 36). Позже это будут массивы NumPy.
+Случайным образом перемешиваем imagePaths (строки 39−41). Функция paths.list_images найдёт пути ко всем входным изображениям в каталоге нашего датасета перед тем, как мы отсортируем и перемешаем (shuffle) их. Установим константное значение seed так, чтобы случайное переупорядочивание было воспроизводимым.
+Начинаем цикл по всем imagePaths в наборе данных (строка 44).
+Для каждого imagePath:
+
+а) Загружаем изображение image в память (строка 48).
+
+б) Изменяем его размер на 32×32 пикселя (без учёта соотношения сторон) и сглаживаем (flatten) (строка 49). Очень важно правильно изменить размер изображений (resize), поскольку это необходимо для данной нейронной сети. Каждая нейросеть требует различного разрешения изображений, поэтому просто помните об этом. Сглаживание данных позволяет легко передавать необработанные интенсивности пикселей в нейроны входного слоя. Позже вы увидите, что для VGGNet мы будем передавать в сеть сразу все данные, поскольку она является свёрточной. Но в этом примере пока рассматривается простая несвёрточная сеть.
+
+в) Добавляем изменённое изображение к массиву данных (строка 50).
+
+г) Извлекаем метку класса изображения из его пути (строка 54) и добавляем к остальным меткам (строка 55). Список меток содержит классы, соответствующие каждому изображению в массиве данных.
+
+Теперь мы легко можем применить операции с массивами к нашим данным и меткам:
+
+
+# масштабируем интенсивности пикселей в диапазон [0, 1]
+data = np.array(data, dtype="float") / 255.0
+labels = np.array(labels)
+57
+58
+59
+# масштабируем интенсивности пикселей в диапазон [0, 1]
+data = np.array(data, dtype="float") / 255.0
+labels = np.array(labels)
+В строке 58 мы отображаем интенсивность пикселя из диапазона целых чисел [0, 255] в непрерывный вещественный диапазон [0, 1] (обычный этап предварительной обработки).
+
+Также конвертируем метки в массив NumPy (строка 59).
+
+3. Создание обучающей и тестовой выборок
+
+Теперь, когда мы загрузили данные с диска, нужно разделить их на обучающую и тестовую выборки:
+
+
+# разбиваем данные на обучающую и тестовую выборки, используя 75% 
+# данных для обучения и оставшиеся 25% для тестирования
+(trainX, testX, trainY, testY) = train_test_split(data,
+    labels, test_size=0.25, random_state=42)
+61
+62
+63
+64
+# разбиваем данные на обучающую и тестовую выборки, используя 75% 
+# данных для обучения и оставшиеся 25% для тестирования
+(trainX, testX, trainY, testY) = train_test_split(data,
+    labels, test_size=0.25, random_state=42)
+Обычно большая часть данных выделяется для обучения, и около 20−30% для тестирования. Scikit-learn предоставляет удобную функцию train_test_split, которая разделит для нас данные.
+
+trainX и testX — это изображения, а trainY и testY — соответствующие метки.
+
+Наши метки классов сейчас представлены в виде строк, однако Keras будет считать, что:
+
+Метки кодируются целыми числами.
+Для этих меток выполняется One-Hot Encoding, в результате чего каждая метка представляется в виде вектора, а не целого числа.
+Для того чтобы выполнить эту кодировку, можно использовать класс LabelBinarizer из scikit-learn:
+
+
+# конвертируем метки из целых чисел в векторы (для 2х классов при 
+# бинарной классификации вам следует использовать функцию Keras 
+# “to_categorical” вместо “LabelBinarizer” из scikit-learn, которая
+# не возвращает вектор)
+lb = LabelBinarizer()
+trainY = lb.fit_transform(trainY)
+testY = lb.transform(testY)
+66
+67
+68
+69
+70
+71
+72
+# конвертируем метки из целых чисел в векторы (для 2х классов при 
+# бинарной классификации вам следует использовать функцию Keras 
+# “to_categorical” вместо “LabelBinarizer” из scikit-learn, которая
+# не возвращает вектор)
+lb = LabelBinarizer()
+trainY = lb.fit_transform(trainY)
+testY = lb.transform(testY)
+В строке 70 мы инициализируем объект LabelBinarizer.
+
+Вызов fit_transform находит все уникальные метки класса в testY, а затем преобразует их в метки One-Hot Encoding.
+
+Вызов .transform выполняет всего один шаг One-Hot Encoding — уникальный набор возможных меток классов уже был определён вызовом fit_transform.
+
+Пример:
+
+
+[1, 0, 0] # относится к кошкам 
+[0, 1, 0] # относится к собакам 
+[0, 0, 1] # относится к панде
+1
+2
+3
+[1, 0, 0] # относится к кошкам 
+[0, 1, 0] # относится к собакам 
+[0, 0, 1] # относится к панде
+4. Определение архитектуры модели Keras
+
+Следующий шаг — определение архитектуры нашей нейронной сети с использованием Keras. Мы будем использовать сеть с одним входным слоем, одним выходным и двумя скрытыми:
+
+
+# определим архитектуру 3072-1024-512-3 с помощью Keras
+model = Sequential()
+model.add(Dense(1024, input_shape=(3072,), activation="sigmoid"))
+model.add(Dense(512, activation="sigmoid"))
+model.add(Dense(len(lb.classes_), activation="softmax"))
+74
+75
+76
+77
+78
+# определим архитектуру 3072-1024-512-3 с помощью Keras
+model = Sequential()
+model.add(Dense(1024, input_shape=(3072,), activation="sigmoid"))
+model.add(Dense(512, activation="sigmoid"))
+model.add(Dense(len(lb.classes_), activation="softmax"))
+Поскольку наша модель очень простая, мы определим её прямо в этом сценарии (обычно для архитектуры модели приходится создавать отдельный класс).
+
+Входной слой и первый скрытый слой определены в строке 76. input_shape будет равен 3072, так как мы имеем 32×32×3=3072 пикселей в сглаженном входном изображении. Первый скрытый слой будет иметь 1024 узла.
+
+Второй скрытый слой имеет 512 узлов (строка 77).
+
+И, наконец, количество узлов выходного слоя (строка 78) будет равно числу возможных меток классов — в нашем случае, выходной слой будет иметь три узла, один для каждой метки класса («cats», «dogs», и «panda» соответственно).
+
+5. Компиляция модели
+
+После того как мы определили архитектуру нашей нейронной сети, нам необходимо скомпилировать её:
+
+
+# инициализируем скорость обучения и общее число эпох
+INIT_LR = 0.01
+EPOCHS = 75
+ 
+# компилируем модель, используя SGD как оптимизатор и категориальную
+# кросс-энтропию в качестве функции потерь (для бинарной классификации 
+# следует использовать binary_crossentropy)
+print("[INFO] training network...")
+opt = SGD(lr=INIT_LR)
+model.compile(loss="categorical_crossentropy", optimizer=opt,
+   metrics=["accuracy"]) 
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+# инициализируем скорость обучения и общее число эпох
+INIT_LR = 0.01
+EPOCHS = 75
+ 
+# компилируем модель, используя SGD как оптимизатор и категориальную
+# кросс-энтропию в качестве функции потерь (для бинарной классификации 
+# следует использовать binary_crossentropy)
+print("[INFO] training network...")
+opt = SGD(lr=INIT_LR)
+model.compile(loss="categorical_crossentropy", optimizer=opt,
+   metrics=["accuracy"]) 
+Сначала мы инициализируем скорость обучения и общее число эпох (полных проходов по выборке) (строки 81 и 82).
+
+Затем мы скомпилируем модель, используя метод стохастического градиентного спуска (SGD) и «categorical_crossentropy» (категориальную кросс-энтропию) в качестве функции потерь.
+
+Категориальная кросс-энтропия используется почти для всех нейросетей, обученных выполнять классификацию. Единственное исключение — когда имеется только два класса и две возможные метки. В этом случае используется бинарная кросс-энтропия («binary_crossentropy»).
+
+6. Обучение модели
+
+Теперь, когда наша модель Keras скомпилирована, мы можем «подогнать» (fit) (т.е. обучить) её:
+
+
+# обучаем нейросеть
+H = model.fit(trainX, trainY, validation_data=(testX, testY),
+    epochs=EPOCHS, batch_size=32) 
+92
+93
+94
+# обучаем нейросеть
+H = model.fit(trainX, trainY, validation_data=(testX, testY),
+    epochs=EPOCHS, batch_size=32) 
+Здесь нам известно обо всём, кроме batch_size (размер пакета). Параметр batch_size контролирует размер каждой группы данных для передачи по сети. Мощные GPU могут обрабатывать большие пакеты, но рекомендуется отталкиваться от размеров 32 и 64.
+
+7. Оценка модели
+
+Мы обучили модель, теперь нужно оценить её с помощью тестовой выборки.
+
+Оценка модели очень важна, поскольку необходимо получить непредвзятое (или как можно более близкое к непредвзятому) представление о том, насколько хорошо наша модель работает с данными, на которых она никогда не обучалась.
+
+Для оценки модели Keras можно использовать комбинацию методов .predict и classification_report из scikit-learn:
+
+
+# оцениваем нейросеть
+print("[INFO] evaluating network...")
+predictions = model.predict(testX, batch_size=32)
+print(classification_report(testY.argmax(axis=1),
+    predictions.argmax(axis=1), target_names=lb.classes_))
+ 
+# строим графики потерь и точности
+N = np.arange(0, EPOCHS)
+plt.style.use("ggplot")
+plt.figure()
+plt.plot(N, H.history["loss"], label="train_loss")
+plt.plot(N, H.history["val_loss"], label="val_loss")
+plt.plot(N, H.history["acc"], label="train_acc")
+plt.plot(N, H.history["val_acc"], label="val_acc")
+plt.title("Training Loss and Accuracy (Simple NN)")
+plt.xlabel("Epoch #")
+plt.ylabel("Loss/Accuracy")
+plt.legend()
+plt.savefig(args["plot"])
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+# оцениваем нейросеть
+print("[INFO] evaluating network...")
+predictions = model.predict(testX, batch_size=32)
+print(classification_report(testY.argmax(axis=1),
+    predictions.argmax(axis=1), target_names=lb.classes_))
+ 
+# строим графики потерь и точности
+N = np.arange(0, EPOCHS)
+plt.style.use("ggplot")
+plt.figure()
+plt.plot(N, H.history["loss"], label="train_loss")
+plt.plot(N, H.history["val_loss"], label="val_loss")
+plt.plot(N, H.history["acc"], label="train_acc")
+plt.plot(N, H.history["val_acc"], label="val_acc")
+plt.title("Training Loss and Accuracy (Simple NN)")
+plt.xlabel("Epoch #")
+plt.ylabel("Loss/Accuracy")
+plt.legend()
+plt.savefig(args["plot"])
+Запустив этот скрипт, вы увидите, что нейронная сеть начала обучаться, и теперь мы можем оценить модель на тестовых данных:
+
+
+$ python train_simple_nn.py --dataset animals --model output/simple_nn.model \
+	--label-bin output/simple_nn_lb.pickle --plot output/simple_nn_plot.png
+Using TensorFlow backend.
+[INFO] loading images...
+[INFO] training network...
+Train on 2250 samples, validate on 750 samples
+Epoch 1/75
+2250/2250 [==============================] - 1s - loss: 1.1033 - acc: 0.3636 - val_loss: 1.0811 - val_acc: 0.3707
+Epoch 2/75
+2250/2250 [==============================] - 0s - loss: 1.0882 - acc: 0.3862 - val_loss: 1.1292 - val_acc: 0.3227
+Epoch 3/75
+2250/2250 [==============================] - 0s - loss: 1.0713 - acc: 0.4067 - val_loss: 1.0525 - val_acc: 0.3907
+...
+Epoch 73/75
+2250/2250 [==============================] - 0s - loss: 0.7780 - acc: 0.6067 - val_loss: 0.8438 - val_acc: 0.5813
+Epoch 74/75
+2250/2250 [==============================] - 0s - loss: 0.7805 - acc: 0.5978 - val_loss: 0.8463 - val_acc: 0.5893
+Epoch 75/75
+2250/2250 [==============================] - 0s - loss: 0.7765 - acc: 0.6262 - val_loss: 0.8144 - val_acc: 0.6133
+[INFO] evaluating network...
+         	precision    recall  f1-score   support
+ 
+   	cats   	0.58      0.50      0.54   	236
+   	dogs   	0.49      0.50      0.49   	236
+      panda   	0.73      0.81      0.77   	278
+ 
+avg / total   	0.61      0.61      0.61   	750
+ 
+[INFO] serializing network and label binarizer...
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+$ python train_simple_nn.py --dataset animals --model output/simple_nn.model \
+	--label-bin output/simple_nn_lb.pickle --plot output/simple_nn_plot.png
+Using TensorFlow backend.
+[INFO] loading images...
+[INFO] training network...
+Train on 2250 samples, validate on 750 samples
+Epoch 1/75
+2250/2250 [==============================] - 1s - loss: 1.1033 - acc: 0.3636 - val_loss: 1.0811 - val_acc: 0.3707
+Epoch 2/75
+2250/2250 [==============================] - 0s - loss: 1.0882 - acc: 0.3862 - val_loss: 1.1292 - val_acc: 0.3227
+Epoch 3/75
+2250/2250 [==============================] - 0s - loss: 1.0713 - acc: 0.4067 - val_loss: 1.0525 - val_acc: 0.3907
+...
+Epoch 73/75
+2250/2250 [==============================] - 0s - loss: 0.7780 - acc: 0.6067 - val_loss: 0.8438 - val_acc: 0.5813
+Epoch 74/75
+2250/2250 [==============================] - 0s - loss: 0.7805 - acc: 0.5978 - val_loss: 0.8463 - val_acc: 0.5893
+Epoch 75/75
+2250/2250 [==============================] - 0s - loss: 0.7765 - acc: 0.6262 - val_loss: 0.8144 - val_acc: 0.6133
+[INFO] evaluating network...
+         	precision    recall  f1-score   support
+ 
+   	cats   	0.58      0.50      0.54   	236
+   	dogs   	0.49      0.50      0.49   	236
+      panda   	0.73      0.81      0.77   	278
+ 
+avg / total   	0.61      0.61      0.61   	750
+ 
+[INFO] serializing network and label binarizer...
+Поскольку сеть небольшая (как и набор данных), этот процесс в среднем занимает около двух секунд.
+
+Можно увидеть, что наша нейросеть точна на 61%.
+
+Так как шанс случайного выбора правильной метки для изображения равен 1/3, мы можем утверждать, что сеть фактически выучила шаблоны, которые могут использоваться для различения трёх классов.
+
+Также мы сохранили следующие графики:
+
+— потери при обучении
+
+— потери при оценке
+
+— точность обучения
+
+— точность оценивания
+
+С их помощью мы можем определить переобучение или недообучение модели.
+
+
+Глядя на график, можно увидеть небольшое переобучение, начинающееся после шага ~45, когда между потерями при обучении и оценке появляется явный разрыв.
+
+Наконец, мы можем сохранить нашу модель на диск, чтобы позже использовать её, не занимаясь обучением снова:
+
+
+# сохраняем модель и бинаризатор меток на диск
+print("[INFO] serializing network and label binarizer...")
+model.save(args["model"])
+f = open(args["label_bin"], "wb")
+f.write(pickle.dumps(lb))
+f.close() 
+116
+117
+118
+119
+120
+121
+# сохраняем модель и бинаризатор меток на диск
+print("[INFO] serializing network and label binarizer...")
+model.save(args["model"])
+f = open(args["label_bin"], "wb")
+f.write(pickle.dumps(lb))
+f.close() 
+8. Распознавание изображений с использованием обученной модели
+Сейчас наша модель обучена — но что, если нам снова понадобится классифицировать новые изображения? Как загрузить модель с диска? Как обработать изображение для классификации? Для начала откроем скрипт predict.py и вставим туда следующий код:
+
+
+# импортируем необходимые пакеты
+from keras.models import load_model
+import argparse
+import pickle
+import cv2
+ 
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-i", "--image", required=True,
+    help="path to input image we are going to classify")
+ap.add_argument("-m", "--model", required=True,
+    help="path to trained Keras model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to label binarizer")
+ap.add_argument("-w", "--width", type=int, default=28,
+    help="target spatial dimension width")
+ap.add_argument("-e", "--height", type=int, default=28,
+    help="target spatial dimension height")
+ap.add_argument("-f", "--flatten", type=int, default=-1,
+    help="whether or not we should flatten the image")
+args = vars(ap.parse_args())
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+# импортируем необходимые пакеты
+from keras.models import load_model
+import argparse
+import pickle
+import cv2
+ 
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-i", "--image", required=True,
+    help="path to input image we are going to classify")
+ap.add_argument("-m", "--model", required=True,
+    help="path to trained Keras model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to label binarizer")
+ap.add_argument("-w", "--width", type=int, default=28,
+    help="target spatial dimension width")
+ap.add_argument("-e", "--height", type=int, default=28,
+    help="target spatial dimension height")
+ap.add_argument("-f", "--flatten", type=int, default=-1,
+    help="whether or not we should flatten the image")
+args = vars(ap.parse_args())
+Сначала мы импортируем необходимые пакеты и модули.
+
+load_model позволяет загрузить модель Keras с диска. OpenCV будет использоваться для вывода изображений. Модуль pickle загружает бинаризатор меток.
+
+Далее снова разберём аргументы командной строки:
+
+--image: путь к входному изображению.
+
+--model: путь к нашей обученной и сериализованной модели.
+
+--label-bin: путь к бинаризатору меток.
+
+--width: ширина изображения для CNN. Помните, что вы не можете просто указать тут что-нибудь. Вам необходимо указать ширину, для которой предназначена модель.
+
+--height: высота входного изображения. Также должна соответствовать конкретной модели.
+
+--flatten: надо ли сглаживать изображение (по умолчанию мы не будем этого делать).
+
+Загрузим изображение и изменим его размер, исходя из аргументов командной строки:
+
+
+# загружаем входное изображение и меняем его размер на необходимый
+image = cv2.imread(args["image"])
+output = image.copy()
+image = cv2.resize(image, (args["width"], args["height"]))
+ 
+# масштабируем значения пикселей к диапазону [0, 1]
+image = image.astype("float") / 255.0
+23
+24
+25
+26
+27
+28
+29
+# загружаем входное изображение и меняем его размер на необходимый
+image = cv2.imread(args["image"])
+output = image.copy()
+image = cv2.resize(image, (args["width"], args["height"]))
+ 
+# масштабируем значения пикселей к диапазону [0, 1]
+image = image.astype("float") / 255.0
+Если необходимо, изображение можно сгладить:
+
+
+# проверяем, необходимо ли сгладить изображение и добавить размер
+# пакета
+if args["flatten"] &gt; 0:
+    image = image.flatten()
+    image = image.reshape((1, image.shape[0]))
+ 
+# в противном случае мы работаем с CNN -- не сглаживаем изображение
+# и просто добавляем размер пакета
+else:
+    image = image.reshape((1, image.shape[0], image.shape[1],
+        image.shape[2]))
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+# проверяем, необходимо ли сгладить изображение и добавить размер
+# пакета
+if args["flatten"] &gt; 0:
+    image = image.flatten()
+    image = image.reshape((1, image.shape[0]))
+ 
+# в противном случае мы работаем с CNN -- не сглаживаем изображение
+# и просто добавляем размер пакета
+else:
+    image = image.reshape((1, image.shape[0], image.shape[1],
+        image.shape[2]))
+В случае с CNN мы указываем размер пакета, но не выполняем сглаживание (строки 39−41). Пример с CNN рассматривается в следующем разделе.
+
+Теперь загрузим нашу модель и бинаризатор меток в память и попробуем распознать изображение:
+
+
+# загружаем модель и бинаризатор меток
+print("[INFO] loading network and label binarizer...")
+model = load_model(args["model"])
+lb = pickle.loads(open(args["label_bin"], "rb").read())
+ 
+# распознаём изображение
+preds = model.predict(image)
+ 
+# находим индекс метки класса с наибольшей вероятностью
+# соответствия
+i = preds.argmax(axis=1)[0]
+label = lb.classes_[i]
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+# загружаем модель и бинаризатор меток
+print("[INFO] loading network and label binarizer...")
+model = load_model(args["model"])
+lb = pickle.loads(open(args["label_bin"], "rb").read())
+ 
+# распознаём изображение
+preds = model.predict(image)
+ 
+# находим индекс метки класса с наибольшей вероятностью
+# соответствия
+i = preds.argmax(axis=1)[0]
+label = lb.classes_[i]
+Модель и бинаризатор загружаются в строках 45 и 46.
+
+Распознавание изображений (прогнозирование принадлежности объекта к одному из классов) осуществляется с помощью метода model.predict (строка 49).
+
+Как же выглядит массив preds?
+
+
+(Pdb) preds
+array([[5.4622066e-01, 4.5377851e-01, 7.7963534e-07]], dtype=float32)
+1
+2
+(Pdb) preds
+array([[5.4622066e-01, 4.5377851e-01, 7.7963534e-07]], dtype=float32)
+Двумерный массив содержит (1) индекс изображения в пакете (здесь он только один, поскольку было передано одно изображение) и (2) проценты, соответствующие возможной принадлежности изображения к каждой метке класса:
+
+— cats: 54.6%
+
+— dogs: 45.4%
+
+— panda: ~0%
+
+То есть наша нейросеть «думает», что, вероятнее всего, видит кошку, и определённо не видит панду.
+
+В строке 53 мы находим индекс наибольшего значения (в данном случае нулевой).
+
+И в строке 54 извлекаем строковую метку «cats» из бинаризатора меток.
+
+Легко, правда?
+
+Теперь отобразим результаты:
+
+
+# рисуем метку класса + вероятность на выходном изображении
+text = "{}: {:.2f}%".format(label, preds[0][i] * 100)
+cv2.putText(output, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+    (0, 0, 255), 2)
+ 
+# показываем выходное изображение
+cv2.imshow("Image", output)
+cv2.waitKey(0) 
+56
+57
+58
+59
+60
+61
+62
+63
+# рисуем метку класса + вероятность на выходном изображении
+text = "{}: {:.2f}%".format(label, preds[0][i] * 100)
+cv2.putText(output, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+    (0, 0, 255), 2)
+ 
+# показываем выходное изображение
+cv2.imshow("Image", output)
+cv2.waitKey(0) 
+Мы форматируем текстовый вывод в строке 57 (метку класса и прогнозируемое значение в процентах).
+
+Затем помещаем текст на выходное изображение (строки 58 и 59).
+
+Наконец, выводим картинку на экран и ждём, пока пользователь не нажмёт какую-либо клавишу (строки 62 и 63).
+
+Наш скрипт для распознавания изображений оказался довольно простым.
+
+Теперь вы можете открыть терминал и попробовать запустить обученную нейросеть на собственных снимках:
+
+
+$ python predict.py --image images/cat.jpg --model output/simple_nn.model \
+	--label-bin output/simple_nn_lb.pickle --width 32 --height 32 --flatten 1
+Using TensorFlow backend.
+[INFO] loading network and label binarizer...
+1
+2
+3
+4
+$ python predict.py --image images/cat.jpg --model output/simple_nn.model \
+	--label-bin output/simple_nn_lb.pickle --width 32 --height 32 --flatten 1
+Using TensorFlow backend.
+[INFO] loading network and label binarizer...
+Убедитесь, что вы скопировали/вставили команду целиком (включая аргументы командной строки) из папки со скриптом.
+
+
+Наша простая нейросеть классифицировала входное изображение как кота с вероятностью 55.87%, несмотря на то, что его морда частично скрыта куском хлеба.
+
+Примечание:
+
+Обратите внимание, что полученные вами результаты могут отличаться от приведённых в этой статье. Скорее всего, это происходит из-за того, что процесс обучения каждый раз может проходить по-разному даже на одних и тех же исходных данных. Например, в нашем эксперименте точность нейросети снизилась до 60%, и изображение с котом классифицировалось как «dogs» с вероятностью 45.34%. Можете поделиться своими результатами и предположениями, с чем это может быть связано.
+
+9. БОНУС: Обучение свёрточной нейронной сети с Keras
+На самом деле, использование стандартной нейронной сети прямого распространения для классификации изображений — не лучшее решение.
+
+Вместо этого разумнее использовать свёрточные нейронные сети (CNN), предназначенные для работы с интенсивностями пикселей и изучения различающих фильтров, что позволяет классифицировать изображения с высокой точностью.
+
+В этом разделе будет использоваться уменьшенный вариант VGGNet (назовём её «SmallVGGNet»).
+
+VGGNet-подобные модели имеют две общие особенности:
+
+Используются только свёрточные фильтры 3х3
+Свёрточные слои («convolution layers») чередуются со слоями подвыборки («pooling layers»).
+Приступим к реализации SmallVGGNet.
+
+Откройте файл smallvggnet.py и вставьте туда следующий код:
+
+
+# импортируем необходимые пакеты
+from keras.models import Sequential
+from keras.layers.normalization import BatchNormalization
+from keras.layers.convolutional import Conv2D
+from keras.layers.convolutional import MaxPooling2D
+from keras.layers.core import Activation
+from keras.layers.core import Flatten
+from keras.layers.core import Dropout
+from keras.layers.core import Dense
+from keras import backend as K 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+# импортируем необходимые пакеты
+from keras.models import Sequential
+from keras.layers.normalization import BatchNormalization
+from keras.layers.convolutional import Conv2D
+from keras.layers.convolutional import MaxPooling2D
+from keras.layers.core import Activation
+from keras.layers.core import Flatten
+from keras.layers.core import Dropout
+from keras.layers.core import Dense
+from keras import backend as K 
+Как вы могли заметить, всё, что необходимо для SmallVGGNet, импортируется из Keras. С каждым из модулей можно ознакомиться в документации Keras.
+
+Теперь определим наш класс SmallVGGNet (строка 12) и метод сборки (build) (строка 14):
+
+
+class SmallVGGNet:
+    @staticmethod
+    def build(width, height, depth, classes):
+        # инициализируем модель и размер входного изображения
+        # для порядка каналов “channel_last” и размер канала
+        model = Sequential()
+        inputShape = (height, width, depth)
+        chanDim = -1
+ 
+        # если мы используем порядок "channels first", обновляем
+        # входное изображение и размер канала
+        if K.image_data_format() == "channels_first":
+            inputShape = (depth, height, width)
+            chanDim = 1 
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+class SmallVGGNet:
+    @staticmethod
+    def build(width, height, depth, classes):
+        # инициализируем модель и размер входного изображения
+        # для порядка каналов “channel_last” и размер канала
+        model = Sequential()
+        inputShape = (height, width, depth)
+        chanDim = -1
+ 
+        # если мы используем порядок "channels first", обновляем
+        # входное изображение и размер канала
+        if K.image_data_format() == "channels_first":
+            inputShape = (depth, height, width)
+            chanDim = 1 
+Для сборки требуется 4 параметра: ширина входных изображений (width), высота (height), глубина (depth) и число классов (classes).
+
+Глубина также может интерпретироваться как число каналов. Поскольку мы используем RGB-изображения, то при вызове метода build будем передавать глубину = 3.
+
+Сначала инициализируем последовательную (Sequential) модель (строка 17).
+
+Затем определяем порядок каналов. Keras поддерживает «channels_last» (TensorFlow) и «channels_first» (Theano). Строки 18−25 позволяют использовать любой из них.
+
+Теперь добавим несколько слоёв в сеть:
+
+
+            # слои CONV =&gt; RELU =&gt; POOL
+            model.add(Conv2D(32, (3, 3), padding="same",
+            input_shape=inputShape))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25)) 
+27
+28
+29
+30
+31
+32
+33
+            # слои CONV =&gt; RELU =&gt; POOL
+            model.add(Conv2D(32, (3, 3), padding="same",
+            input_shape=inputShape))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25)) 
+В этом блоке добавляются слои CONV => RELU => POOL.
+
+Первый слой CONV имеет 32 фильтра размером 3×3.
+
+Важно, чтобы мы указали inputShape для первого слоя, так как все последующие размеры слоёв будут рассчитываться с использованием метода «просачивания» (trickle-down).
+
+В этой архитектуре сети мы будем использовать функцию активации ReLU (Rectified Linear Unit). Также будут использованы: пакетная нормализация (Batch Normalization), функция максимума (MaxPooling) и метод исключения (Dropout).
+
+Пакетная нормализация позволяет масштабировать входные данные для передачи их на следующий слой сети. Доказано, что метод эффективно стабилизирует и уменьшает количество шагов обучения CNN.
+
+К слоям POOL применяется функция постепенного уменьшения размера (т.е. ширины и высоты) входного слоя. Обычно в архитектуре CNN слои POOL вставляются между последовательно идущими слоями CONV.
+
+Метод исключения деактивирует случайные нейроны между слоями. В результате процесс становится более устойчивым: уменьшается переобучение, повышается точность; и нейросеть лучше сможет распознавать незнакомые изображения. В нашем случае (строка 33) 25% нейронных соединений случайным образом деактивируются между слоями для каждой итерации обучения.
+
+Переходим к следующим слоям:
+
+
+            # слои (CONV =&gt; RELU) * 2 =&gt; POOL
+            model.add(Conv2D(64, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(64, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+35
+36
+37
+38
+39
+40
+41
+42
+43
+            # слои (CONV =&gt; RELU) * 2 =&gt; POOL
+            model.add(Conv2D(64, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(64, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+Обратите внимание, что размеры фильтра остаются прежними (3×3), а общее число фильтров увеличивается с 32 до 64.
+
+Затем идёт набор слоёв (CONV => RELU) * 3 => POOL:
+
+
+            # слои (CONV =&gt; RELU) * 3 =&gt; POOL
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+            # слои (CONV =&gt; RELU) * 3 =&gt; POOL
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(Conv2D(128, (3, 3), padding="same"))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization(axis=chanDim))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+Опять же, число фильтров удвоилось с 64 до 128, а размер остался прежним. Увеличение общего количества фильтров при уменьшении размера входных данных в CNN — обычная практика.
+
+И, наконец, последний набор слоёв:
+
+
+            # первый (и единственный) набор слоев FC =&gt; RELU
+            model.add(Flatten())
+            model.add(Dense(512))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization())
+            model.add(Dropout(0.5))
+ 
+            # классификатор softmax
+            model.add(Dense(classes))
+            model.add(Activation("softmax"))
+ 
+            # возвращаем собранную архитектуру нейронной сети
+            return model
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+            # первый (и единственный) набор слоев FC =&gt; RELU
+            model.add(Flatten())
+            model.add(Dense(512))
+            model.add(Activation("relu"))
+            model.add(BatchNormalization())
+            model.add(Dropout(0.5))
+ 
+            # классификатор softmax
+            model.add(Dense(classes))
+            model.add(Activation("softmax"))
+ 
+            # возвращаем собранную архитектуру нейронной сети
+            return model
+Полностью связанные слои в Keras обозначаются как Dense. Последний слой соединён с тремя выходами (так как в нашем наборе данных три класса). Слой softmax возвращает вероятность принадлежности к определённому классу для каждой метки.
+
+Теперь, когда мы реализовали нейросеть SmallVGGNet, давайте напишем скрипт для её обучения на наборе данных Animals.
+
+Большая часть кода такая же, как и в предыдущем примере. Откройте скрипт train_vgg.py:
+
+
+# импортируем бэкенд Agg из matplotlib для сохранения графиков на диск
+import matplotlib
+matplotlib.use("Agg")
+ 
+# подключаем необходимые пакеты
+from pyimagesearch.smallvggnet import SmallVGGNet
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from keras.preprocessing.image import ImageDataGenerator
+from keras.optimizers import SGD
+from imutils import paths
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import random
+import pickle
+import cv2 
+import os
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+# импортируем бэкенд Agg из matplotlib для сохранения графиков на диск
+import matplotlib
+matplotlib.use("Agg")
+ 
+# подключаем необходимые пакеты
+from pyimagesearch.smallvggnet import SmallVGGNet
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from keras.preprocessing.image import ImageDataGenerator
+from keras.optimizers import SGD
+from imutils import paths
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import random
+import pickle
+import cv2 
+import os
+Все import-ы те же, но с двумя отличиями:
+
+Вместо from keras. models import Sequential мы загружаем модель SmallVGGNet: from pyimagesearch. smallvggnet import SmallVGGNet
+Данные будут дополняться с помощью ImageDataGenerator.
+Теперь аргументы командной строки:
+
+
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset", required=True,
+    help="path to input dataset of images")
+ap.add_argument("-m", "--model", required=True,
+    help="path to output trained model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to output label binarizer")
+ap.add_argument("-p", "--plot", required=True,
+    help="path to output accuracy/loss plot")
+args = vars(ap.parse_args())
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+# создаём парсер аргументов и передаём их
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset", required=True,
+    help="path to input dataset of images")
+ap.add_argument("-m", "--model", required=True,
+    help="path to output trained model")
+ap.add_argument("-l", "--label-bin", required=True,
+    help="path to output label binarizer")
+ap.add_argument("-p", "--plot", required=True,
+    help="path to output accuracy/loss plot")
+args = vars(ap.parse_args())
+Видим, что аргументы такие же, как и в предыдущем примере.
+
+Загружаем и предварительно обрабатываем данные:
+
+
+# инициализируем данные и метки
+print("[INFO] loading images...")
+data = []
+labels = []
+ 
+# берём пути к изображениям и рандомно перемешиваем
+imagePaths = sorted(list(paths.list_images(args["dataset"])))
+random.seed(42)
+random.shuffle(imagePaths)
+ 
+# цикл по изображениям
+for imagePath in imagePaths:
+    # загружаем изображение, меняем размер на 64x64 пикселей
+    # (требуемые размеры для SmallVGGNet), изменённое изображение
+    # добавляем в список
+    image = cv2.imread(imagePath)
+    image = cv2.resize(image, (64, 64))
+    data.append(image)
+ 
+    # извлекаем метку класса из пути к изображению и обновляем
+    # список меток
+    label = imagePath.split(os.path.sep)[-2]
+    labels.append(label)
+
+# масштабируем интенсивности пикселей в диапазон [0, 1]
+data = np.array(data, dtype="float") / 255.0
+labels = np.array(labels)
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+# инициализируем данные и метки
+print("[INFO] loading images...")
+data = []
+labels = []
+ 
+# берём пути к изображениям и рандомно перемешиваем
+imagePaths = sorted(list(paths.list_images(args["dataset"])))
+random.seed(42)
+random.shuffle(imagePaths)
+ 
+# цикл по изображениям
+for imagePath in imagePaths:
+    # загружаем изображение, меняем размер на 64x64 пикселей
+    # (требуемые размеры для SmallVGGNet), изменённое изображение
+    # добавляем в список
+    image = cv2.imread(imagePath)
+    image = cv2.resize(image, (64, 64))
+    data.append(image)
+ 
+    # извлекаем метку класса из пути к изображению и обновляем
+    # список меток
+    label = imagePath.split(os.path.sep)[-2]
+    labels.append(label)
+ 
+# масштабируем интенсивности пикселей в диапазон [0, 1]
+data = np.array(data, dtype="float") / 255.0
+labels = np.array(labels)
+Снова почти никаких отличий.
+
+Разделяем данные на обучающую и тестовую выборки и бинаризуем метки:
+
+
+# разбиваем данные на обучающую и тестовую выборки, используя 75% 
+# данных для обучения и оставшиеся 25% для тестирования
+(trainX, testX, trainY, testY) = train_test_split(data,
+    labels, test_size=0.25, random_state=42)
+ 
+# конвертируем метки из целых чисел в векторы (для 2х классов при 
+# бинарной классификации вам следует использовать функцию Keras 
+# “to_categorical” вместо “LabelBinarizer” из scikit-learn, которая
+# не возвращает вектор)
+lb = LabelBinarizer()
+trainY = lb.fit_transform(trainY)
+testY = lb.transform(testY)
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+# разбиваем данные на обучающую и тестовую выборки, используя 75% 
+# данных для обучения и оставшиеся 25% для тестирования
+(trainX, testX, trainY, testY) = train_test_split(data,
+    labels, test_size=0.25, random_state=42)
+ 
+# конвертируем метки из целых чисел в векторы (для 2х классов при 
+# бинарной классификации вам следует использовать функцию Keras 
+# “to_categorical” вместо “LabelBinarizer” из scikit-learn, которая
+# не возвращает вектор)
+lb = LabelBinarizer()
+trainY = lb.fit_transform(trainY)
+testY = lb.transform(testY)
+Теперь дополняем данные:
+
+
+# создаём генератор для добавления изображений
+aug = ImageDataGenerator(rotation_range=30, width_shift_range=0.1,
+    height_shift_range=0.1, shear_range=0.2, zoom_range=0.2,
+    horizontal_flip=True, fill_mode="nearest")
+ 
+# инициализируем нашу VGG-подобную свёрточную нейросеть
+model = SmallVGGNet.build(width=64, height=64, depth=3,
+    classes=len(lb.classes_))
+74
+75
+76
+77
+78
+79
+80
+81
+# создаём генератор для добавления изображений
+aug = ImageDataGenerator(rotation_range=30, width_shift_range=0.1,
+    height_shift_range=0.1, shear_range=0.2, zoom_range=0.2,
+    horizontal_flip=True, fill_mode="nearest")
+ 
+# инициализируем нашу VGG-подобную свёрточную нейросеть
+model = SmallVGGNet.build(width=64, height=64, depth=3,
+    classes=len(lb.classes_))
+В строках 75−77 мы инициализируем генератор для добавления изображений.
+
+Это позволит нам создать дополнительные обучающие данные из уже существующих путём поворота, сдвига, обрезания и увеличения изображений.
+
+Дополнение данных позволит избежать переобучения и повысит эффективность модели. Рекомендуется всегда выполнять эту операцию, если нет явных причин этого не делать.
+
+Чтобы собрать нашу SmallVGGNet, просто вызовем метод SmallVGGNet.build в процессе передачи необходимых параметров (строки 80 и 81).
+
+Скомпилируем и обучим модель:
+
+
+# инициализируем скорость обучения, общее число шагов
+# и размер пакета
+INIT_LR = 0.01
+EPOCHS = 75
+BS = 32
+ 
+# компилируем модель с помощью SGD (для бинарной классификации 
+# следует использовать binary_crossentropy)
+print("[INFO] training network...")
+opt = SGD(lr=INIT_LR, decay=INIT_LR / EPOCHS)
+model.compile(loss="categorical_crossentropy", optimizer=opt,
+    metrics=["accuracy"])
+ 
+# обучаем нейросеть
+H = model.fit_generator(aug.flow(trainX, trainY, batch_size=BS),
+    validation_data=(testX, testY), steps_per_epoch=len(trainX) // BS,
+    epochs=EPOCHS) 
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+# инициализируем скорость обучения, общее число шагов
+# и размер пакета
+INIT_LR = 0.01
+EPOCHS = 75
+BS = 32
+ 
+# компилируем модель с помощью SGD (для бинарной классификации 
+# следует использовать binary_crossentropy)
+print("[INFO] training network...")
+opt = SGD(lr=INIT_LR, decay=INIT_LR / EPOCHS)
+model.compile(loss="categorical_crossentropy", optimizer=opt,
+    metrics=["accuracy"])
+ 
+# обучаем нейросеть
+H = model.fit_generator(aug.flow(trainX, trainY, batch_size=BS),
+    validation_data=(testX, testY), steps_per_epoch=len(trainX) // BS,
+    epochs=EPOCHS) 
+Процесс почти не отличается от предыдущего примера, за исключением того, что, поскольку мы дополняем входные данные, вместо model.fit вызывается метод model.fit_generator. Генератор будет создавать партии дополнительных данных для обучения в соответствии с заданными ранее настройками.
+
+Наконец, оценим модель, построив кривые потерь/точности и сохраним её:
+
+
+# оцениваем нейросеть
+print("[INFO] evaluating network...")
+predictions = model.predict(testX, batch_size=32)
+print(classification_report(testY.argmax(axis=1),
+     predictions.argmax(axis=1), target_names=lb.classes_))
+ 
+# строим графики потерь и точности
+N = np.arange(0, EPOCHS)
+plt.style.use("ggplot")
+plt.figure()
+plt.plot(N, H.history["loss"], label="train_loss")
+plt.plot(N, H.history["val_loss"], label="val_loss")
+plt.plot(N, H.history["acc"], label="train_acc")
+plt.plot(N, H.history["val_acc"], label="val_acc")
+plt.title("Training Loss and Accuracy (SmallVGGNet)")
+plt.xlabel("Epoch #")
+plt.ylabel("Loss/Accuracy")
+plt.legend()
+plt.savefig(args["plot"])
+ 
+# сохраняем модель и бинаризатор меток на диск
+print("[INFO] serializing network and label binarizer...")
+model.save(args["model"])
+f = open(args["label_bin"], "wb")
+f.write(pickle.dumps(lb))
+f.close()
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+# оцениваем нейросеть
+print("[INFO] evaluating network...")
+predictions = model.predict(testX, batch_size=32)
+print(classification_report(testY.argmax(axis=1),
+     predictions.argmax(axis=1), target_names=lb.classes_))
+ 
+# строим графики потерь и точности
+N = np.arange(0, EPOCHS)
+plt.style.use("ggplot")
+plt.figure()
+plt.plot(N, H.history["loss"], label="train_loss")
+plt.plot(N, H.history["val_loss"], label="val_loss")
+plt.plot(N, H.history["acc"], label="train_acc")
+plt.plot(N, H.history["val_acc"], label="val_acc")
+plt.title("Training Loss and Accuracy (SmallVGGNet)")
+plt.xlabel("Epoch #")
+plt.ylabel("Loss/Accuracy")
+plt.legend()
+plt.savefig(args["plot"])
+ 
+# сохраняем модель и бинаризатор меток на диск
+print("[INFO] serializing network and label binarizer...")
+model.save(args["model"])
+f = open(args["label_bin"], "wb")
+f.write(pickle.dumps(lb))
+f.close()
+Мы делаем прогнозы на тестовой выборке, а затем оцениваем точность классификации (строки 103−105).
+
+Построение и сохранение на диск графиков, модели и меток аналогично предыдущему примеру.
+
+Продолжим обучать нашу модель. Откройте терминал и выполните следующую команду:
+
+
+$ python train_vgg.py --dataset animals --model output/smallvggnet.model \
+	--label-bin output/smallvggnet_lb.pickle \
+	--plot output/smallvggnet_plot.png
+Using TensorFlow backend.
+[INFO] loading images...
+[INFO] training network...
+Epoch 1/75
+70/70 [==============================] - 3s - loss: 1.3783 - acc: 0.5165 - val_loss: 2.3654 - val_acc: 0.3133
+Epoch 2/75
+70/70 [==============================] - 2s - loss: 1.0382 - acc: 0.5998 - val_loss: 2.7962 - val_acc: 0.3173
+Epoch 3/75
+70/70 [==============================] - 2s - loss: 0.9366 - acc: 0.6018 - val_loss: 2.2790 - val_acc: 0.3173
+...
+Epoch 73/75
+70/70 [==============================] - 2s - loss: 0.4402 - acc: 0.8044 - val_loss: 0.4975 - val_acc: 0.7880
+Epoch 74/75
+70/70 [==============================] - 2s - loss: 0.4306 - acc: 0.8055 - val_loss: 0.6150 - val_acc: 0.7520
+Epoch 75/75
+70/70 [==============================] - 2s - loss: 0.4179 - acc: 0.8110 - val_loss: 0.5624 - val_acc: 0.7653
+[INFO] evaluating network...
+         	precision    recall  f1-score   support
+ 
+   	cats   	0.62      0.84      0.71   	236
+   	dogs   	0.75      0.50      0.60   	236
+      panda   	0.95      0.92      0.93   	278
+ 
+avg / total   	0.78      0.77      0.76   	750
+ 
+[INFO] serializing network and label binarizer...
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+$ python train_vgg.py --dataset animals --model output/smallvggnet.model \
+	--label-bin output/smallvggnet_lb.pickle \
+	--plot output/smallvggnet_plot.png
+Using TensorFlow backend.
+[INFO] loading images...
+[INFO] training network...
+Epoch 1/75
+70/70 [==============================] - 3s - loss: 1.3783 - acc: 0.5165 - val_loss: 2.3654 - val_acc: 0.3133
+Epoch 2/75
+70/70 [==============================] - 2s - loss: 1.0382 - acc: 0.5998 - val_loss: 2.7962 - val_acc: 0.3173
+Epoch 3/75
+70/70 [==============================] - 2s - loss: 0.9366 - acc: 0.6018 - val_loss: 2.2790 - val_acc: 0.3173
+...
+Epoch 73/75
+70/70 [==============================] - 2s - loss: 0.4402 - acc: 0.8044 - val_loss: 0.4975 - val_acc: 0.7880
+Epoch 74/75
+70/70 [==============================] - 2s - loss: 0.4306 - acc: 0.8055 - val_loss: 0.6150 - val_acc: 0.7520
+Epoch 75/75
+70/70 [==============================] - 2s - loss: 0.4179 - acc: 0.8110 - val_loss: 0.5624 - val_acc: 0.7653
+[INFO] evaluating network...
+         	precision    recall  f1-score   support
+ 
+   	cats   	0.62      0.84      0.71   	236
+   	dogs   	0.75      0.50      0.60   	236
+      panda   	0.95      0.92      0.93   	278
+ 
+avg / total   	0.78      0.77      0.76   	750
+ 
+[INFO] serializing network and label binarizer...
+Убедитесь, что вы ввели все аргументы командной строки.
+
+Обучение на CPU займёт довольно продолжительное время — каждый из 75 шагов требует более минуты, и процесс будет длиться около полутора часов.
+
+GPU завершит процесс гораздо быстрее — каждый шаг выполняется всего за 2 секунды, как и продемонстрировано.
+
+Посмотрим на итоговый график обучения в каталоге output/:
+
+
+Как можно увидеть, мы достигли точности в 78% на наборе изображений Animals с использованием свёрточной нейронной сети — значительно выше, чем предыдущее значение в 60%.
+
+Теперь мы можем применить нашу обученную CNN к новым изображениям:
+
+
+$ python predict.py --image images/panda.jpg --model output/smallvggnet.model \
+	--label-bin output/smallvggnet_lb.pickle --width 64 --height 64
+Using TensorFlow backend.
+[INFO] loading network and label binarizer...
+1
+2
+3
+4
+$ python predict.py --image images/panda.jpg --model output/smallvggnet.model \
+	--label-bin output/smallvggnet_lb.pickle --width 64 --height 64
+Using TensorFlow backend.
+[INFO] loading network and label binarizer...
+
+CNN полностью уверена, что это панда.
+
+Алгоритмы CNN используются для поиска изображений, например, в Google Photo, но распознавание и классификация фотографий — не единственный пример использования свёрточных нейросетей: они также хорошо себя показали, например, в задачах обработки естественного языка (Natural Language Processing, NLP).
+
+Исходный код
+Код и датасет к статье можно загрузить отсюда (размер архива 246 МБ).
+
+Дерзайте и делитесь своими результатами, а если что-то непонятно — задавайте вопросы в комментариях, мы ответим и поможем разобраться. Также будем рады услышать от вас предложения тем следующих статей — пишите, о чём хотели бы почитать.
+
+С оригинальной статьёй можно ознакомиться на сайте pyimagesearch.com.
+
+Редакция
+12 апреля 2019
+Поделиться…
+
+
+Будь в курсе! Интересные и полезные статьи об индустрии доменов и хостинга
+
+
+Ваша электронная почта
+RSS
+Услуги
+Домены
+Конструктор и CMS
+Хостинг
+VPS
+Серверы и ДЦ
+SSL
+Сервисы
+REG.RU
+Новости
+Акции и скидки
+О нас
+Карьера
+Помощь
+Помощь
+Отзывы
+Присоединяйтесь
+      
+© 2019 REG.RUПерейти на сайт REG.RU
+Поделитесь с друзьями
+ВКонтакте
+Одноклассники
+Twitter
+Facebook
+Мой Мир
+LiveJournal
+Google Plus
+Яндекс
+Поделитесь с друзьями
+ВКонтакте
+Одноклассники
+Twitter
+Facebook
+Мой Мир
+LiveJournal
+Google Plus
+Яндекс
+/////// Сазонов
+Андрей Созыкин
+Проекты Публикации Курсы Коучинг Обо мне Контакты
+Остановка обучения нейросети при переобучении
+16.10.2018
+
+
+
+Переобучение - это одна из самых частых проблем при обучении глубоких нейронных сетей и в машинном обучении в целом. При переобучении нейронная сеть адаптируется к особенностям обучающего набора данных, а не находит общие закономерности. В результате сеть хорошо работает на обучающем наборе, но плохо на тех данных, которые она не видела в процессе обучения. Таким образом, у модели снижается обобщающая способность.
+
+Один из вариантов решения этой проблемы – остановить процесс обучения нейросети при появлении первых признаков переобучения. В Keras это можно сделать с помощью EarlyStopping Callback, в этой статье я расскажу, как его использовать.
+
+Создаем демонстрационную нейросеть для MNIST
+Давайте рассмотрим, как применить EarlyStopping Callback на примере нейронной сети для распознавания рукописных цифр из набора данных MNIST.
+
+На первом этапе нужно подключить интересующий нас Callback совместно с другими модулями Keras:
+
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras import utils
+from tensorflow.keras.callbacks import EarlyStopping
+Загружаем данные и создаем нейронную сеть:
+
+# Загружаем данные
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Преобразуем в нужный формат
+X_train = X_train.reshape(60000, 784)
+X_test = X_test.reshape(10000, 784)
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train /= 255
+X_test /= 255
+Y_train = utils.to_categorical(y_train, 10)
+Y_test = utils.to_categorical(y_test, 10)
+
+# Создаем последовательную модель для нейронной сети
+model = Sequential()
+
+# Полносвязная нейронная сеть, состоящая из двух слоев
+model.add(Dense(800, input_dim=784, activation="relu"))
+model.add(Dense(10, activation="softmax"))
+
+# Компилируем модель
+model.compile(loss="categorical_crossentropy", 
+              optimizer="adam", 
+              metrics=["accuracy"])
+Как работает Keras EarlyStopping Callback
+Чтобы обнаружить переобучение мы сравниваем качество работы сети на обучающем и проверочном наборах данных. Если качество на обучающем наборе данных растёт, а на проверочном снижается – значит переобучение началось.
+
+EarlyStopping Callback в Keras наблюдает за метрикой качества обучения и прерывает обучение процесс обучения, если эта метрика начинает снижаться. Для нашей сети EarlyStopping Callback создается следующим образом:
+
+early_stopping_callback = EarlyStopping(monitor='val_acc', 
+                                        patience=2)
+Метрика качества обучения задается в параметре monitor. Здесь мы используем долю правильных ответов на проверочном наборе данных ('val_acc').
+
+При обучении нейросети мы используем стохастический градиентный спуск или аналогичные методы, при которых качество решения на некоторых эпохах может снижаться, но после этого снова возрастать. Параметр patience говорит о том, сколько эпох обучения может ухудшаться метрика качества, прежде чем обучение будет остановлено. В примере ранняя остановка обучения произойдет если доля правильных ответов на проверочном наборе данных снижается две эпохи подряд.
+
+Запускаем обучение с ранней остановкой
+Запускаем обучение нейронной сети в течение 25 эпох. Наверняка вы помните из предыдущих примеров, что при таком количестве эпох уже возникает переобучение. При вызове метода model.fit в параметре callbacks мы указываем список, состоящий из одного early_stopping_callback, который мы создали на предыдущем этапе.
+
+history = model.fit(X_train, Y_train, 
+                    batch_size=200, 
+                    epochs=25, 
+                    validation_split=0.2, 
+                    verbose=2, 
+                    callbacks=[early_stopping_callback])
+Диагностический вывод сети в процессе обучения:
+
+Train on 48000 samples, validate on 12000 samples
+Epoch 1/25
+ - 6s - loss: 0.3135 - acc: 0.9122 - val_loss: 0.1637 - val_acc: 0.9538
+Epoch 2/25
+ - 1s - loss: 0.1272 - acc: 0.9636 - val_loss: 0.1108 - val_acc: 0.9690
+Epoch 3/25
+ - 1s - loss: 0.0841 - acc: 0.9758 - val_loss: 0.0916 - val_acc: 0.9734
+Epoch 4/25
+ - 1s - loss: 0.0585 - acc: 0.9832 - val_loss: 0.0876 - val_acc: 0.9725
+Epoch 5/25
+ - 1s - loss: 0.0429 - acc: 0.9877 - val_loss: 0.0832 - val_acc: 0.9743
+Epoch 6/25
+ - 1s - loss: 0.0315 - acc: 0.9916 - val_loss: 0.0725 - val_acc: 0.9778
+Epoch 7/25
+ - 1s - loss: 0.0235 - acc: 0.9945 - val_loss: 0.0723 - val_acc: 0.9778
+Epoch 8/25
+ - 1s - loss: 0.0173 - acc: 0.9961 - val_loss: 0.0670 - val_acc: 0.9793
+Epoch 9/25
+ - 1s - loss: 0.0129 - acc: 0.9974 - val_loss: 0.0728 - val_acc: 0.9783
+Epoch 10/25
+ - 1s - loss: 0.0093 - acc: 0.9986 - val_loss: 0.0715 - val_acc: 0.9789
+Мы видим, что обучение остановилось на десятой эпохе вместо 25 эпох. На восьмой эпохе доля правильных ответов на проверочном наборе данных была 0.9793. На девятой эпохе эта доля снизилась до 0.9783. Десятая эпоха привела к небольшому росту доли правильных ответов до 0.9789, но это все равно меньше, чем показатель на восьмой эпохе. Таком образом, у нас в течение двух эпох доля правильных ответов была ниже, чем на восьмой эпохе, поэтому EarlyStopping Callback остановил обучение.
+
+Если вы обучали сеть без диагностического вывода, узнать на какой эпохе произошла остановка можно с помощью early_stopping_callback.stopped_epoch:
+
+print("Обучение остановлено на эпохе", early_stopping_callback.stopped_epoch)
+Обучение остановлено на эпохе 9
+Напечатано, что остановка произошла на девятой эпохе, но отсчет здесь ведется с нуля.
+
+Визуализация процесса обучения
+Давайте построим графики качества обучения нейросети с помощью объекта history.
+
+plt.plot(history.history['acc'], 
+         label='Доля верных ответов на обучающем наборе')
+plt.plot(history.history['val_acc'], 
+         label='Доля верных ответов на проверочном наборе')
+plt.xlabel('Эпоха обучения')
+plt.ylabel('Доля верных ответов')
+plt.legend()
+plt.show()
+График выглядит следующим образом:
+
+График качества обучения нейросети
+
+Видно, что доля правильных ответов на обучающем наборе данных постоянно растет. Однако на проверочном наборе данных этот показатель растет примерно до пятой или шестой эпохи, а потом почти не меняется. Снижение на девятой и десятой эпохе на графике почти не заметно. Таким образом, ранняя остановка обучения произошла в подходящий момент.
+
+Итоги
+EarlyStopping Callback в Keras позволяет остановить процесс обучения нейросети до начала переобучения. При создании EarlyStopping Callback указываем метрику качества, снижение которой будет признаком начала переобучения, и количество эпох, в течение которых метрика качества может снижаться.
+
+В документация на сайте Keras можно найти другие полезные параметры EarlyStopping Callback. Например, restore_best_weights=True позволит после обучения получить сеть с весами, соответствующим лучшему значению метрики качества обучения. По умолчанию этот флаг установлен в False и возвращаются веса на последней эпохе обучения сети. Если значение patience достаточно высоко, то это может быть не лучшая модель.
+
+Также снизить переобучение помогает слой Dropout и методы регуляризации, о них не стоит забывать.
+
+Полезные ссылки
+Полный текст примера кода использования EarlyStopping Callback для распознавания рукописных цифр.
+Документация на EarlyStopping Callback.
+
+Андрей Созыкин
+sozykin@gmail.com
+Занимаюсь образованием в Data Science и Big Data.
+
+ИП Созыкин Андрей Владимирович, ОГРНИП 314667024700038, ИНН 590502185155
